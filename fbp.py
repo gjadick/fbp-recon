@@ -26,14 +26,13 @@ def get_angle(x,y):
 
 def get_L2(r, theta, beta, SID):
     '''calcs rescale value for projection'''
-    return r**2 * np.cos(beta - theta)**2 + (SID + r*np.sin(beta - theta))**2
-
+    L2 = r**2 * np.cos(beta - theta)**2 + (SID + r*np.sin(beta - theta))**2
+    return np.float32(L2)
 
 def get_gamma(r, theta, beta, SID):
     '''calcs the gamma passing through given matrix (x,y) coordinate '''
-    return np.arctan(r*np.cos(beta - theta)/(SID + r*np.sin(beta - theta)))
-    #return get_angle(SID + r*np.sin(beta - theta), r*np.cos(beta - theta))
-
+    gamma = np.arctan(r*np.cos(beta - theta)/(SID + r*np.sin(beta - theta)))
+    return np.float32(gamma)
 
 def get_gaussian(x, mu, sigma):
     return np.exp(-(x-mu)**2/(2*sigma**2))/(sigma*np.sqrt(2*np.pi))
@@ -54,8 +53,8 @@ def get_z_data(z_target, z_width, z, img):
     z_weights = get_gaussian(z, z_target, z_target_sigma)
     z_weights /= np.trapz(z_weights, x=z)  # normalize
     weighted_image = (img.T * z_weights[::-1]).T
-    return np.sum(weighted_image, axis=0)   
-
+    image_slice = np.sum(weighted_image, axis=0)   
+    return np.float32(image_slice)
 
 def get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width):
     '''Get the sinogram specific to the target z and width'''
@@ -66,7 +65,7 @@ def get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width):
         this_vz = i_beta*dz_proj + vz_coord
         proj_z = get_z_data(z_target, z_width, this_vz, proj)
         result[i_beta] = proj_z
-    return np.array(result)
+    return np.array(result, dtype=np.float32)
 
 
 def get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj, SID):
@@ -77,6 +76,7 @@ def get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj, SID):
     X_matrix, Y_matrix = np.meshgrid(matrix_coord_1d, -matrix_coord_1d)
     r_matrix = np.sqrt(X_matrix**2 + Y_matrix**2)
     theta_matrix = np.reshape([get_angle(X_matrix.ravel()[i], Y_matrix.ravel()[i]) for i in range(N_matrix**2)], [N_matrix, N_matrix])
+    r_matrix, theta_matrix = np.float32(r_matrix), np.float32(theta_matrix)
 
     # fan-beam rescaling for each beta: L^2(r,theta), gamma(r,theta)
     gamma_target_matrix_all = np.empty([N_proj_rot, N_matrix, N_matrix], dtype=np.float32)
@@ -88,7 +88,7 @@ def get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj, SID):
 
     # recon matrix indices
     ji_coord = np.reshape(np.array(np.meshgrid(range(N_matrix),range(N_matrix))).T, [N_matrix**2, 2])
-
+    
     return ji_coord, r_matrix, theta_matrix, gamma_target_matrix_all, L2_matrix_all
     
 def lerp(v0, v1, t):

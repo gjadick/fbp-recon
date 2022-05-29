@@ -82,30 +82,31 @@ if __name__=='__main__':
     
     # z: global height to row
     dz_proj = dz_rot/N_proj_rot
-    z0_rot = np.arange(0, N_rot*dz_rot, dz_rot)  # initial z for each rotation
+    z0_rot = np.arange(0, N_rot*dz_rot, dz_rot,dtype=np.float32)  # initial z for each rotation
 
     # gamma: angle between projection vertical axis & channel center
     gamma_max = sz_col*(0.5*(cols-1))/SDD
     dgamma =    sz_col/SDD 
-    gamma_coord = np.array([-gamma_max + i*dgamma for i in range(cols)])
+    gamma_coord = np.array([-gamma_max + i*dgamma for i in range(cols)], dtype=np.float32)
     
     # v: height between projection horizontal axis & row center
     v_max = (SID/SDD)*sz_row*(0.5*(rows-1))
     dv    = (SID/SDD)*sz_row
-    v_coord = np.array([v_max - j*dv for j in range(rows)])
+    v_coord = np.array([v_max - j*dv for j in range(rows)], dtype=np.float32)
  
     
     ### GROUP PROJECTIONS BY BETA
     ### (vertically stacked "mega-projections" which include all rotations)
     t0 = time()
     temp = np.reshape(data, [N_rot, N_proj_rot, rows, cols])
-    data_beta = np.array([np.vstack(temp[::-1,i_beta,:,:]) for i_beta in range(N_proj_rot)])
+    data_beta = np.array([np.vstack(temp[::-1,i_beta,:,:]) for i_beta in range(N_proj_rot)], dtype=np.float32)
     del data
     del temp
     
     # vz: global height of each row for mega-projection.
     vz_mesh = np.meshgrid(v_coord[::-1], z0_rot)   # [::-1] to stack in ascending order
     vz_coord = vz_mesh[0].flatten() + vz_mesh[1].flatten()
+    vz_coord = np.float32(vz_coord)
     print(f'[{time()-t0:.1f} s] projections grouped by beta')
 
 
@@ -113,7 +114,7 @@ if __name__=='__main__':
     # alpha: cone angle for each row
     t0 = time()
     if do_cone_filter:
-        alpha_coord = np.array([(j - rows//2 + 0.5) * sz_row for j in range(rows)])/SDD
+        alpha_coord = np.array([(j - rows//2 + 0.5) * sz_row for j in range(rows)], dtype=np.float32)/SDD
         w3D = get_w3D(alpha_coord, np.max(alpha_coord), kl)
         data_beta_flat = np.reshape([rotproj*np.tile(w3D,[cols,N_rot]).T for rotproj in data_beta], [N_proj*rows, cols])
     else:
@@ -122,8 +123,8 @@ if __name__=='__main__':
     
     # G: fanbeam ramplike filter 
     G = get_G(gamma_coord, cols, s, fc)
-    qm_flat = np.array([0.5*q*SID*np.cos(gamma_coord) for q in data_beta_flat])    # with cosine weighting
-    qm_flat_filtered = np.array([np.fft.irfft(G*np.fft.rfft(qm)) for qm in qm_flat])
+    qm_flat = np.array([0.5*q*SID*np.cos(gamma_coord) for q in data_beta_flat], dtype=np.float32)    # with cosine weighting
+    qm_flat_filtered = np.array([np.fft.irfft(G*np.fft.rfft(qm)) for qm in qm_flat], dtype=np.float32)
     del qm_flat
     q_filtered = np.reshape(qm_flat_filtered,  [N_proj_rot, N_rot*rows, cols])
     del qm_flat_filtered
