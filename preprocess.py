@@ -22,4 +22,8 @@ def get_G(gamma_coord, cols, s, fc):
 
 
 def get_w3D(a, a_m, kl):
-    return 1 / (1 + (np.tan(np.abs(a))/np.tan(np.abs(a_m)))**kl)
+    # get initial weighting based on tan function
+    w3D_raw = 1 / (1 + (np.tan(np.abs(a))/np.tan(np.abs(a_m)))**kl)
+    # rescale weights to range 0 to 1 (instead of 0.5 to 1)
+    w3D = 2*(w3D_raw - 0.5) + 1-np.max(w3D_raw)
+    return w3D
