@@ -12,7 +12,7 @@ from time import time
 #from datetime import datetime
 #import multiprocessing as mp
 
-from io import read_dcm_proj, make_output_dir, img_to_dcm
+from file_manager import read_dcm_proj, make_output_dir, img_to_dcm
 from preprocess import get_G, get_w3D
 from fbp import get_recon_coords, get_sinogram, do_recon    
 from postprocess import get_HU
@@ -25,8 +25,8 @@ if __name__=='__main__':
     #proj_dir =  os.path.join(data_dir, 'dcmproj_reference')
     #recon_dir = os.path.join(data_dir, 'dcmrecon_reference')
     
-    #proj_dir =  'input/dcmproj_liver/dcm_134'
-    proj_dir = 'input/dcmproj_lung_lesion/dcm_067/'
+    proj_dir =  'input/dcmproj_liver/dcm_134'
+    #proj_dir = 'input/dcmproj_lung_lesion/dcm_067/'
     ######################################################################
     ######################################################################
     
@@ -138,7 +138,7 @@ if __name__=='__main__':
     output_dir = make_output_dir(proj_dir) 
     
     # get recon matrix coordinates
-    ji_coord, r_M, theta_M, gamma_target_M, L2_M = get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj)
+    ji_coord, r_M, theta_M, gamma_target_M, L2_M = get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj, SID)
     
     for i_target, z_target in enumerate(z_targets):
     

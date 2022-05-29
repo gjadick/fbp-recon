@@ -69,7 +69,7 @@ def get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width):
     return np.array(result)
 
 
-def get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj):
+def get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj, SID):
     '''Get the coordinates needed for the reconstruction matrix (common to all recons with same matrix)'''
     ## matrix coordinates: (r, theta)
     sz = FOV/N_matrix 
@@ -83,8 +83,8 @@ def get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj):
     L2_matrix_all = np.empty([N_proj_rot, N_matrix, N_matrix], dtype=np.float32)
     for i_beta in range(N_proj_rot):
         beta = i_beta*dbeta_proj            
-        gamma_target_matrix_all[i_beta] = get_gamma(r_matrix, theta_matrix, beta)
-        L2_matrix_all[i_beta] = get_L2(r_matrix, theta_matrix, beta)
+        gamma_target_matrix_all[i_beta] = get_gamma(r_matrix, theta_matrix, beta, SID)
+        L2_matrix_all[i_beta] = get_L2(r_matrix, theta_matrix, beta, SID)
 
     # recon matrix indices
     ji_coord = np.reshape(np.array(np.meshgrid(range(N_matrix),range(N_matrix))).T, [N_matrix**2, 2])
