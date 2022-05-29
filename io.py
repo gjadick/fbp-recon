@@ -55,7 +55,7 @@ def read_dcm_proj(proj_dir):
     return data
 
 
-def img_to_dcm(img, filename, z_width, z_target, FOV=500):
+def img_to_dcm(img, filename, z_width, z_target, ramp_percent, kl, FOV=500):
     '''
     Writes the image (assumed to be CT data, float32) to filename.
     If '.dcm' extension missing from filename, it is added.
@@ -70,6 +70,10 @@ def img_to_dcm(img, filename, z_width, z_target, FOV=500):
         slice width [mm]
     z_target: float32
         slice location (center) [mm]
+    ramp_percent: float32
+        percentage of Nyquist frequency used as max value in fanbeam ramplike filter
+    kl: float32 
+        parameter for the alpha weighting cone beam correction
         
     Returns
     -------
@@ -121,6 +125,10 @@ def img_to_dcm(img, filename, z_width, z_target, FOV=500):
     ds.SpacingBetweenSlices = z_width
     ds.SliceLocation = z_target
     
+    # filter info
+    ds.ImageFilter = 'weighted ramp'
+    ds.ImageFilterDescription = f'Fanbeam ramp-like filter (ramp_percent={ramp_percent:.2f}), cone beam alpha weighting (kl={kl:.2f})'
+
     # save
     ds.save_as(filename)
 
