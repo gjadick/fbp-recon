@@ -18,7 +18,7 @@ from fbp import get_recon_coords, get_sinogram, do_recon
 from postprocess import get_HU
 
 import matplotlib.pyplot as plt
-        
+
 if __name__=='__main__':
 
     #data_dir =  'reference'
@@ -161,8 +161,8 @@ if __name__=='__main__':
             plt.show()
             
         if save_sinograms:
-            sino.tofile('output/test_sinogram.npy')
-            w_sino.tofile('output/test_weights.npy')
+            np.save('output/test_sinogram.npy', sino)
+            np.save('output/test_weights.npy', w_sino)
 
         # recon
         recon = do_recon(sino, w_sino, dbeta_proj, gamma_coord,                  
