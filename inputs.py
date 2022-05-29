@@ -8,6 +8,7 @@ Created on Fri May 27 11:06:58 2022
 
 import os
 import pydicom
+import numpy as np
 
 def read_dcm_proj(proj_dir):
     '''
@@ -26,6 +27,7 @@ def read_dcm_proj(proj_dir):
     '''
     # get sorted list of .dcm files
     proj_files = sorted([x for x in os.listdir(proj_dir) if x[-4:]=='.dcm'])
+    
     N_proj = len(proj_files)
     
     # get rows and columns from first file
@@ -34,7 +36,7 @@ def read_dcm_proj(proj_dir):
     cols = int(ds.Columns)
                         
     # read in all projections
-    data = np.empty([N_proj, rows, cols], dtype=np.float32) 
+    data = np.empty([N_proj, cols, rows], dtype=np.float32) 
     for ind, file_name in enumerate(proj_files):
 
         this_proj_file = os.path.join(proj_dir, file_name)
