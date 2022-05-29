@@ -9,7 +9,9 @@ Created on Fri May 27 11:07:07 2022
 import numpy as np
 
 from time import time
-from multiprocessing import Pool
+
+import matplotlib.pyplot as plt
+from datetime import datetime
 
 
 def get_angle(x,y):
@@ -51,14 +53,14 @@ def get_z_data(z_target, z_width, z, img):
     z_target_sigma = z_width / (2*np.sqrt(2*np.log(2)))  # FWHM -> sigma for Gaussian
     z_weights = get_gaussian(z, z_target, z_target_sigma)
     z_weights /= np.trapz(z_weights, x=z)  # normalize
-    weighted_image = (img.T * z_weights).T
+    weighted_image = (img.T * z_weights[::-1]).T
     return np.sum(weighted_image, axis=0)   
 
 
-def do_recon(q_filtered,                                    # projections
-             dbeta_proj, dz_proj, gamma_coord, vz_coord,    # projection params
-             z_target, z_width, N_matrix, FOV,              # recon params
-             verbose=False):
+def do_recon(q_filtered,                                       # projections
+             SID, dbeta_proj, dz_proj, gamma_coord, vz_coord,  # projection params
+             z_target, z_width, N_matrix, FOV,                 # recon params
+             verbose=True):
 
     ## initialize recon matrix coordinates, faster calculating
     sz = FOV/N_matrix 
@@ -79,7 +81,7 @@ def do_recon(q_filtered,                                    # projections
 
         if verbose:
             if i_beta%100 == 0:
-                print(f'{i_beta:5}: {time()-t0:.3f} s')
+                print(f'{z_target:8.3f} mm, {100*i_beta/len(q_filtered):5.1f}%: {time()-t0:.3f} s')
 
         # get the coordinates
         beta = i_beta*dbeta_proj            
@@ -90,20 +92,19 @@ def do_recon(q_filtered,                                    # projections
         proj_z = get_z_data(z_target, z_width, this_vz, proj)
         
         # calculate matrix with target gamma and L^2 factors
-        gamma_target_matrix = get_gamma(r_matrix, theta_matrix, beta)
-        L2_matrix = get_L2(r_matrix, theta_matrix, beta)
-
-        # get ray through target coordinate (i,j)
-        def add_ray(ji):
-            j,i = ji
-            this_q = np.interp(gamma_target_matrix[j,i], this_gamma, proj_z)
-            matrix[j,i] += this_q * dbeta_proj / L2_matrix[j,i]
-            
-        # with Pool() as p:    # multiprocessing
-        #     p.map(add_ray, ji_coord)
+        gamma_target_matrix = get_gamma(r_matrix, theta_matrix, beta, SID)
+        L2_matrix = get_L2(r_matrix, theta_matrix, beta, SID)
             
         for j,i in ji_coord:
             this_q = np.interp(gamma_target_matrix[j,i], this_gamma, proj_z)
             matrix[j,i] += this_q * dbeta_proj / L2_matrix[j,i]     
+        
+    fig,ax=plt.subplots(dpi=300)
+    m = ax.imshow(matrix, cmap='gray')
+    plt.colorbar(m)
+    plt.title(f'z = {z_target:.3f} mm, width = {z_width:.3f} mm')
+    now = datetime.now()
+    plt.savefig(f'output/test_{now.strftime("%Y_%m_%d_%H_%M_%S")}.png')
+    plt.show()
         
     return matrix
