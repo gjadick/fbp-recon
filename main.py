@@ -13,7 +13,7 @@ from datetime import datetime
 import multiprocessing as mp
 
 from inputs import read_dcm_proj
-from preprocess import get_H, ramp_filter, get_w3D
+from preprocess import get_G, get_w3D
 from fbp import do_recon    
 
 import matplotlib.pyplot as plt
@@ -49,14 +49,17 @@ if __name__=='__main__':
     FOV = 500.0          # mm
     N_matrix = 512//8       # number pixels in x,y of matrix
     z_width = 0.5467     # mm, chest (smallest possible, 35.05/64)
-    z_width = 1.5        # mm, liver
-    z_targets = [60-BC, 100-BC] #[60,100]
+    #z_width = 1.5        # mm, liver
+    z_targets = [60, 100] #[60,100]
     
     ramp_percent = 0.85  # FT filtering of projection data, use your discretion
-    do_cone_filter = True
-    kl = 0.5 
+    kl = 1.0
+    do_cone_filter = kl > 0
+        
+    s = sz_col*SID/SDD    # sampling distance
+    fN = 1/(2*s)          # Nyquist frequency
+    fc = fN*ramp_percent  # cutoff frequency, percentage of fN
 
-    
     ######################################################################
     ######################################################################
     
@@ -113,13 +116,12 @@ if __name__=='__main__':
     del data_beta
     
     # ramp  
-    H = get_H(ramp_percent, cols) 
-    C = 0.5*SDD*np.cos(gamma_coord)*(gamma_coord/np.sin(gamma_coord))**2
-    q_flat = np.array([C*q for q in data_beta_flat])
-    q_flat_filtered = np.array([ramp_filter(q, H) for q in q_flat])
-    del q_flat
-    q_filtered = np.reshape(q_flat_filtered,  [N_proj_rot, N_rot*rows, cols])
-    del q_flat_filtered
+    G = get_G(gamma_coord, cols, s, fc)
+    qm_flat = np.array([0.5*q*SID*np.cos(gamma_coord) for q in data_beta_flat])    # with cosine weighting
+    qm_flat_filtered = np.array([np.fft.irfft(G*np.fft.rfft(qm)) for qm in qm_flat])
+    del qm_flat
+    q_filtered = np.reshape(qm_flat_filtered,  [N_proj_rot, N_rot*rows, cols])
+    del qm_flat_filtered
     print(f'[{time()-t0:.1f} s] projection data preprocessed')
 
     

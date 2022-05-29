@@ -20,12 +20,25 @@ def get_H(p, cols, gauss_sigma=1):
     H = gaussian_filter1d(H, gauss_sigma)
     return H
 
+def get_G(gamma_coord, cols, s, fc):
+    ''' get an FT-domain fanbeam ramp-like filter '''
+    freq_real = np.fft.rfftfreq(cols, d=s)
+    H = np.abs(freq_real)
+    H[H > fc] = 0.0
+    gamma_FT = np.fft.rfft((gamma_coord/np.sin(gamma_coord))**2)  # RFFT of gamma func
+    G = np.convolve(gamma_FT, H, mode='full')[:len(H)]  # positive freqs, 0 at 0
+    return G
+
 
 def ramp_filter(vec, H):
     ''' in FT domain, filter a 1D vector with ramp filter H '''
     FT = np.fft.rfft(vec)
     FT_filtered = np.fft.ifftshift(H*np.fft.fftshift(FT))
     return np.fft.irfft(FT_filtered)
+
+
+
+
 
 
 def get_w3D(a, a_m, kl):
