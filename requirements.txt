@@ -1,4 +1,5 @@
-numpy
-matplotlib
+pycuda
 scipy
+matplotlib
+numpy
 pydicom
