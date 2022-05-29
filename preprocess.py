@@ -11,9 +11,10 @@ For functions that preprocess the projection data.
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
 
-def get_H(p, N, gauss_sigma=1):
+def get_H(p, cols, gauss_sigma=1):
     ''' get an FT-domain ramp filter '''
-    freq = np.fft.rfftfreq(N)
+    freq = np.fft.rfftfreq(cols)
+    N = freq.size
     H = np.array([np.abs(x) for x in np.linspace(-freq[N//2], freq[N//2], N)])   
     H[H > p*np.max(H)] = 0.0
     H = gaussian_filter1d(H, gauss_sigma)
