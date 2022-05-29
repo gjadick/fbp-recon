@@ -151,7 +151,7 @@ def make_output_dir(proj_dir):
     N = case_id.split('_')[1]
     
     # check directory existence
-    output_dir = output_id + N
+    output_dir = output_id[proj_id] + N
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)    
 
