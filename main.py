@@ -8,6 +8,9 @@ Created on Fri May 27 11:06:36 2022
 
 import os 
 import numpy as np
+from time import time
+from datetime import datetime
+import multiprocessing as mp
 
 from inputs import read_dcm_proj
 from preprocess import get_H, ramp_filter, get_w3D
@@ -21,10 +24,8 @@ if __name__=='__main__':
     #proj_dir =  os.path.join(data_dir, 'dcmproj_reference')
     #recon_dir = os.path.join(data_dir, 'dcmrecon_reference')
     
-    proj_dir =  'dcmproj_lung_lesion/dcm_067/'
-    proj_files = sorted([x for x in os.listdir(proj_dir) if x[-4:]=='.dcm'])
-    N_proj = len(proj_files)
-    
+    #proj_dir =  'input/dcmproj_liver/dcm_134'
+    proj_dir = 'input/dcmproj_lung_lesion/dcm_067/'
     ######################################################################
     ######################################################################
     
@@ -43,16 +44,13 @@ if __name__=='__main__':
     SDD = 1050.0         # mm, source-detector distance 
     pitch = 1.0          # ratio dz_per_rot / BC
     
-    N_rot = N_proj//N_proj_rot
-    dz_rot = pitch*BC
-    
     ### RECON PARAMS
     
     FOV = 500.0          # mm
-    N_matrix = 50# 512       # number pixels in x,y of matrix
+    N_matrix = 512//8       # number pixels in x,y of matrix
     z_width = 0.5467     # mm, chest (smallest possible, 35.05/64)
     z_width = 1.5        # mm, liver
-    z_targets = []
+    z_targets = [60-BC, 100-BC] #[60,100]
     
     ramp_percent = 0.85  # FT filtering of projection data, use your discretion
     do_cone_filter = True
@@ -63,9 +61,12 @@ if __name__=='__main__':
     ######################################################################
     
     ### READ DATA
+    t0 = time()
     data = read_dcm_proj(proj_dir)
     N_proj, rows, cols = data.shape
-    
+    N_rot = N_proj//N_proj_rot
+    dz_rot = pitch*BC
+    print(f'[{time()-t0:.1f} s] data read, {cols} cols x {rows} rows x {N_proj} proj')
     
     ### GET COORDINATES
     # beta: global angle to central row of projection
@@ -88,44 +89,53 @@ if __name__=='__main__':
     
     ### GROUP PROJECTIONS BY BETA
     ### (vertically stacked "mega-projections" which include all rotations)
+    t0 = time()
     temp = np.reshape(data, [N_rot, N_proj_rot, rows, cols])
     data_beta = np.array([np.vstack(temp[::-1,i_beta,:,:]) for i_beta in range(N_proj_rot)])
-
+    del data
+    del temp
+    
     # vz: global height of each row for mega-projection.
     vz_mesh = np.meshgrid(v_coord[::-1], z0_rot)   # [::-1] to stack in ascending order
     vz_coord = vz_mesh[0].flatten() + vz_mesh[1].flatten()
+    print(f'[{time()-t0:.1f} s] projections grouped by beta')
 
 
     ### FILTER DATA
     # alpha: cone angle for each row
+    t0 = time()
     if do_cone_filter:
         alpha_coord = np.array([(j - rows//2 + 0.5) * sz_row for j in range(rows)])/SDD
         w3D = get_w3D(alpha_coord, np.max(alpha_coord), kl)
         data_beta_flat = np.reshape([rotproj*np.tile(w3D,[cols,N_rot]).T for rotproj in data_beta], [N_proj*rows, cols])
     else:
         data_beta_flat = np.reshape(data_beta, [N_proj*rows, cols])
-        
+    del data_beta
+    
     # ramp  
-    H = get_H(ramp_percent) 
+    H = get_H(ramp_percent, cols) 
     C = 0.5*SDD*np.cos(gamma_coord)*(gamma_coord/np.sin(gamma_coord))**2
     q_flat = np.array([C*q for q in data_beta_flat])
     q_flat_filtered = np.array([ramp_filter(q, H) for q in q_flat])
+    del q_flat
     q_filtered = np.reshape(q_flat_filtered,  [N_proj_rot, N_rot*rows, cols])
-    
-    
-    ######################################################################
-    ######################################################################
-    
+    del q_flat_filtered
+    print(f'[{time()-t0:.1f} s] projection data preprocessed')
 
-    for z_target in z_targets:
-        matrix_z = do_recon(q_filtered, dbeta_proj, dz_proj, gamma_coord, vz_coord, 
-                            z_target, z_width, N_matrix, FOV, verbose=True)
     
-        fig,ax=plt.subplots(dpi=300)
-        m = ax.imshow(matrix_z, cmap='gray')
-        plt.colorbar(m)
-        plt.show()
+    ######################################################################
+    ######################################################################
     
+    t0 = time()
+    args = [(q_filtered, SID, dbeta_proj, dz_proj, gamma_coord, vz_coord, z_target, z_width, N_matrix, FOV) for z_target in z_targets]
+    with mp.Pool(5) as pool:    # multiprocessing
+        pool.starmap(do_recon, args)
     
+    # for z_target in z_targets:
+    #     matrix_z = do_recon(q_filtered, SID, dbeta_proj, dz_proj, gamma_coord, vz_coord, 
+    #                         z_target, z_width, N_matrix, FOV, verbose=True)
+    
+    print(f'[{time()-t0:.1f} s] images reconstructed')
+
     
     
