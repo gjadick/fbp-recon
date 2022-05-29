@@ -6,13 +6,13 @@ Created on Fri May 27 11:06:36 2022
 @author: gjadick
 """
 
-#import os 
+import os 
 import numpy as np
 from time import time
 #from datetime import datetime
 #import multiprocessing as mp
 
-from inputs import read_dcm_proj
+from io import read_dcm_proj, make_output_dir, img_to_dcm
 from preprocess import get_G, get_w3D
 from fbp import get_recon_coords, get_sinogram, do_recon    
 from postprocess import get_HU
@@ -135,10 +135,12 @@ if __name__=='__main__':
     
     t0 = time()
     
+    output_dir = make_output_dir(proj_dir) 
+    
     # get recon matrix coordinates
     ji_coord, r_M, theta_M, gamma_target_M, L2_M = get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj)
     
-    for z_target in z_targets:
+    for i_target, z_target in enumerate(z_targets):
     
         # get sinograms
         sino = get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width)        # data sinogram
@@ -166,7 +168,13 @@ if __name__=='__main__':
                      r_M, theta_M, gamma_target_M, L2_M, ji_coord,
                      verbose=True)
         
-        recon_HU = get_HU(recon)  # convert units
+        # convert units
+        recon_HU = get_HU(recon)  
+        
+        # save image
+        filename = os.path.join(output_dir, f'{i_target+1:03}.dcm')
+        img_to_dcm(recon_HU, filename, z_width, z_target, ramp_percent, kl)
+                   
 
     #args = [(q_filtered, SID, dbeta_proj, dz_proj, gamma_coord, vz_coord, z_target, z_width, N_matrix, FOV) for z_target in z_targets]
     #with mp.Pool(5) as pool:    # multiprocessing
@@ -179,4 +187,5 @@ if __name__=='__main__':
     print(f'[{time()-t0:.1f} s] images reconstructed')
 
     
+    # save output
     

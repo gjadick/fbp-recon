@@ -133,5 +133,32 @@ def img_to_dcm(img, filename, z_width, z_target, ramp_percent, kl, FOV=500):
     ds.save_as(filename)
 
 
+def make_output_dir(proj_dir):
+    '''
+    Makes output directory for saving images in DCM format.
+    Output directory name is assigned based on input projection data pathname.
+    (assuming proj dir is of format 'input/dcmproj_lung_lesion/dcm_067')
+    ''' 
+    if proj_dir[-1]=='/':
+        proj_dir=proj_dir[:-1]
+        
+    io, proj_id, case_id = proj_dir.split('/')
+    
+    output_id = {'dcmproj_copd': 'output/copd_',
+                 'dcmproj_lung_lesion': 'output/lung_',
+                 'dcmproj_liver': 'output/liver_'
+                 }
+    N = case_id.split('_')[1]
+    
+    # check directory existence
+    output_dir = output_id + N
+    if not os.path.isdir(output_dir):
+        os.mkdir(output_dir)    
 
+    return output_dir
+    
+    
+    
+    
+    
 
