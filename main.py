@@ -6,15 +6,16 @@ Created on Fri May 27 11:06:36 2022
 @author: gjadick
 """
 
-import os 
+#import os 
 import numpy as np
 from time import time
-from datetime import datetime
-import multiprocessing as mp
+#from datetime import datetime
+#import multiprocessing as mp
 
 from inputs import read_dcm_proj
 from preprocess import get_G, get_w3D
-from fbp import do_recon    
+from fbp import get_recon_coords, get_sinogram, do_recon    
+from postprocess import get_HU
 
 import matplotlib.pyplot as plt
         
@@ -50,7 +51,7 @@ if __name__=='__main__':
     N_matrix = 512//8       # number pixels in x,y of matrix
     z_width = 0.5467     # mm, chest (smallest possible, 35.05/64)
     #z_width = 1.5        # mm, liver
-    z_targets = [60, 100] #[60,100]
+    z_targets = [100]    # mm
     
     ramp_percent = 0.85  # FT filtering of projection data, use your discretion
     kl = 1.0
@@ -59,7 +60,11 @@ if __name__=='__main__':
     s = sz_col*SID/SDD    # sampling distance
     fN = 1/(2*s)          # Nyquist frequency
     fc = fN*ramp_percent  # cutoff frequency, percentage of fN
-
+    
+    ### DEBUG PARAMS
+    check_sinograms = True
+    save_sinograms = True
+    
     ######################################################################
     ######################################################################
     
@@ -115,7 +120,7 @@ if __name__=='__main__':
         data_beta_flat = np.reshape(data_beta, [N_proj*rows, cols])
     del data_beta
     
-    # ramp  
+    # G: fanbeam ramplike filter 
     G = get_G(gamma_coord, cols, s, fc)
     qm_flat = np.array([0.5*q*SID*np.cos(gamma_coord) for q in data_beta_flat])    # with cosine weighting
     qm_flat_filtered = np.array([np.fft.irfft(G*np.fft.rfft(qm)) for qm in qm_flat])
@@ -129,9 +134,43 @@ if __name__=='__main__':
     ######################################################################
     
     t0 = time()
-    args = [(q_filtered, SID, dbeta_proj, dz_proj, gamma_coord, vz_coord, z_target, z_width, N_matrix, FOV) for z_target in z_targets]
-    with mp.Pool(5) as pool:    # multiprocessing
-        pool.starmap(do_recon, args)
+    
+    # get recon matrix coordinates
+    ji_coord, r_M, theta_M, gamma_target_M, L2_M = get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj)
+    
+    for z_target in z_targets:
+    
+        # get sinograms
+        sino = get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width)        # data sinogram
+        if do_cone_filter:
+            w3D_rays = np.tile(np.reshape(w3D, [1,rows,1]), [N_proj_rot, N_rot, cols])
+            w_sino = get_sinogram(w3D_rays, dz_proj, vz_coord, z_target, z_width)       # weights
+            del w3D
+            del w3D_rays
+        else:
+            w_sino = np.ones(sino.shape, dtype=np.float32)
+    
+        # check sinograms
+        if check_sinograms:
+            fig,ax=plt.subplots(1,2,dpi=150,figsize=[8,3])
+            ax[0].imshow(sino)
+            ax[1].imshow(w_sino)
+            plt.show()
+            
+        if save_sinograms:
+            sino.tofile('output/test_sinogram.npy')
+            w_sino.tofile('output/test_weights.npy')
+
+        # recon
+        recon = do_recon(sino, w_sino, dbeta_proj, gamma_coord,                  
+                     r_M, theta_M, gamma_target_M, L2_M, ji_coord,
+                     verbose=True)
+        
+        recon_HU = get_HU(recon)  # convert units
+
+    #args = [(q_filtered, SID, dbeta_proj, dz_proj, gamma_coord, vz_coord, z_target, z_width, N_matrix, FOV) for z_target in z_targets]
+    #with mp.Pool(5) as pool:    # multiprocessing
+    #    pool.starmap(do_recon, args)
     
     # for z_target in z_targets:
     #     matrix_z = do_recon(q_filtered, SID, dbeta_proj, dz_proj, gamma_coord, vz_coord, 
