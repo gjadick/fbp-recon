@@ -20,8 +20,8 @@ def do_recon_gpu(sino, w_sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj):
 
     block_gpu=(N_matrix, block_max//N_matrix, 1)
     grid_gpu=(1,N_matrix//(block_max//N_matrix))
-    print('GPU block', block_gpu)
-    print('GPU grid', grid_gpu)
+    #print('GPU block', block_gpu)
+    #print('GPU grid', grid_gpu)
     
     kernel_code_template = """
         #include <math.h>
