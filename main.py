@@ -205,12 +205,12 @@ if __name__=='__main__':
         print(f'organ {organ} not valid argument')
 
     case_files = sorted([x for x in os.listdir(main_dir) if 'dcm_' in x]) 
-    print(case_files)
+    
     for case_id in case_files:
         proj_dir = os.path.join(main_dir, case_id)
         now = datetime.now()
-    #    print(f'\n[{now.strftime("%Y_%m_%d_%H_%M_%S")}] {proj_dir}')
-    #    main(proj_dir, z_width, ramp_percent, kl, detail_mode)
+        print(f'\n[{now.strftime("%Y_%m_%d_%H_%M_%S")}] {proj_dir}')
+        main(proj_dir, z_width, ramp_percent, kl, detail_mode)
         
 
 
