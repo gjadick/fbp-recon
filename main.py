@@ -68,7 +68,7 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False):
    
     # assign z_targets for a full scan
     z_targets = np.arange(BC, (N_rot-1)*BC, z_width) + z_width/2
-    print(f'\nTarget z assigned: {len(z_targets)} slices to recon, {z_targets[0]:.3f} mm to {z_targets[-1]:.3f} mm \n\n')
+    print(f'Target z assigned: {len(z_targets)} slices to recon, {z_targets[0]:.3f} mm to {z_targets[-1]:.3f} mm')
     
     ### GET COORDINATES
     # beta: global angle to central row of projection
@@ -129,16 +129,14 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False):
     t0 = time()
     
     output_dir = make_output_dir(proj_dir) 
-    # temp for testing!! glj
-    output_dir = os.path.join(output_dir, f'ramp_{ramp_percent:.2f}_kl_{kl:.2f}')
-    if not os.path.isdir(output_dir):
-        os.mkdir(output_dir)
-
+    
     # get recon matrix coordinates
     ji_coord, r_M, theta_M, gamma_target_M, L2_M = get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj, SID)
     
     for i_target, z_target in enumerate(z_targets):
-    
+        print(f'[{i_target+1:03}/{len(z_targets):03}] {z_target:.3f} mm, {time()-t0:.1f} s') 
+        
+        filename = os.path.join(output_dir, f'{i_target+1:03}.dcm')
         # get sinograms
         sino = get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width)        # data sinogram
         w3D_rays = np.tile(np.reshape(w3D, [1,rows,1]), [N_proj_rot, N_rot, cols])
@@ -181,56 +179,37 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False):
 
 if __name__=='__main__':
 
-    #proj_dir =  'input/dcmproj_liver/dcm_134'
-    #proj_dir = 'input/dcmproj_lung_lesion/dcm_067/'
-    
-    main_dir = 'input/dcmproj_liver'
-    z_width = 1.5
-    ramp_percents = np.arange(0.3, 1.0, 0.1)
-    kls = np.arange(0.4, 1.01, 0.1)
-    detail_mode = False
-    
-#    for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
-#        proj_dir = os.path.join(main_dir, case_id)
-#        print(proj_dir)
-        
-#        for kl in kls: 
-#            print(kl)
-#            main(proj_dir, z_width, 0.85, kl)
-        
-#        for ramp_percent in ramp_percents:
-#            print(ramp_percent)
-#            main(proj_dir, z_width, ramp_percent, 0.9)
+    organ = 'liver' # must be liver, lung, copd
 
+    if organ=='liver':
+        main_dir = 'input/dcmproj_liver'
+        z_width = 1.5
+        ramp_percent = 0.40
+        kl = 0.40
+        detail_mode = False
 
-    main_dir = 'input/dcmproj_lung_lesion'
-    z_width = 0.5467
-    ramp_percents = np.arange(0.6, 1.01, 0.1)
-    kls = np.arange(0.4, 1.01, 0.1)
-    detail_mode = False
+    elif organ=='lung':
+        main_dir = 'input/dcmproj_lung_lesion'
+        z_width = 0.5467
+        ramp_percents = 0.60
+        kl = 1.0 
+        detail_mode = True
 
-
-#    for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
-#        proj_dir = os.path.join(main_dir, case_id)
-#        print(proj_dir)
-#        
-#        for kl in kls: 
-#            print(kl)
-#            main(proj_dir, z_width, 0.85, kl)
-#        
-#        for ramp_percent in ramp_percents:
-#            print(ramp_percent)
-#            main(proj_dir, z_width, ramp_percent, 0.9)
+    elif organ=='copd':
+        main_dir = 'input/dcmproj_copd'
+        z_width = 0.5467
+        ramp_percents = 0.90
+        kl = 1.0 
+        detail_mode = True
     
+    else: 
+        print(f'organ {organ} not valid argument')
+
+    case_files = sorted([x for x in os.listdir(main_dir) if 'dcm_' in x]) 
     
-    main_dir = 'input/dcmproj_copd'
-    z_width = 0.5467
-    ramp_percents = np.arange(0.6, 1.01, 0.1)
-    kls = np.arange(0.4, 1.01, 0.1)
-    detail_mode = False
-    for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
+    for case_id in case_files:
         proj_dir = os.path.join(main_dir, case_id)
-        print(proj_dir)
-        main(proj_dir, z_width, ramp_percent, kl, detail_mode )
-
+        print(f'\n{proj_dir}')
+        main(proj_dir, z_width, ramp_percent, kl, detail_mode)
+        
 

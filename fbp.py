@@ -11,7 +11,7 @@ import numpy as np
 from time import time
 
 import matplotlib.pyplot as plt
-from datetime import datetime
+
 
 
 def get_angle(x,y):
@@ -157,12 +157,3 @@ def do_recon(sinogram, w_sinogram, dbeta_proj, gamma_coord,
 
     return matrix/w_matrix
 
-        
-    fig,ax=plt.subplots(dpi=300)
-    m = ax.imshow(matrix, cmap='gray')
-    plt.colorbar(m)
-    now = datetime.now()
-    plt.savefig(f'output/test_{now.strftime("%Y_%m_%d_%H_%M_%S")}.png')
-    plt.show()
-        
-    return matrix
