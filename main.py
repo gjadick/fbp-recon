@@ -15,21 +15,16 @@ from time import time
 from file_manager import read_dcm_proj, make_output_dir, img_to_dcm
 from preprocess import get_G, get_w3D
 from fbp import get_recon_coords, get_sinogram, do_recon    
+from fbp_gpu import do_recon_gpu
 from postprocess import get_HU
 
 import matplotlib.pyplot as plt
 
-if __name__=='__main__':
 
-    #data_dir =  'reference'
-    #proj_dir =  os.path.join(data_dir, 'dcmproj_reference')
-    #recon_dir = os.path.join(data_dir, 'dcmrecon_reference')
-    
-    proj_dir =  'input/dcmproj_liver/dcm_134'
-    #proj_dir = 'input/dcmproj_lung_lesion/dcm_067/'
-    ######################################################################
-    ######################################################################
-    
+##########################################################################
+
+def main(proj_dir, z_width, ramp_percent, kl, verbose=False):
+ 
     ### ACQUISITION PARAMS
     
     N_proj_rot = 1000 
@@ -47,25 +42,19 @@ if __name__=='__main__':
     
     ### RECON PARAMS
     
+    use_GPU = True
+
     FOV = 500.0          # mm
-    N_matrix = 512//8       # number pixels in x,y of matrix
-    z_width = 0.5467     # mm, chest (smallest possible, 35.05/64)
-    #z_width = 1.5        # mm, liver
-    z_targets = [100]    # mm
+    N_matrix = 512       # [N,N] pixels in recon matrix
     
-    ramp_percent = 0.85  # FT filtering of projection data, use your discretion
-    kl = 1.0
-    do_cone_filter = kl > 0
-        
     s = sz_col*SID/SDD    # sampling distance
     fN = 1/(2*s)          # Nyquist frequency
     fc = fN*ramp_percent  # cutoff frequency, percentage of fN
     
     ### DEBUG PARAMS
-    check_sinograms = True
-    save_sinograms = True
+    check_sinograms = False
+    save_sinograms = False
     
-    ######################################################################
     ######################################################################
     
     ### READ DATA
@@ -74,7 +63,12 @@ if __name__=='__main__':
     N_proj, rows, cols = data.shape
     N_rot = N_proj//N_proj_rot
     dz_rot = pitch*BC
-    print(f'[{time()-t0:.1f} s] data read, {cols} cols x {rows} rows x {N_proj} proj')
+    if verbose:
+        print(f'[{time()-t0:.1f} s] data read, {cols} cols x {rows} rows x {N_proj} proj')
+   
+    # assign z_targets for a full scan
+    z_targets = np.arange(BC, (N_rot-1)*BC, z_width) + z_width/2
+    print(f'\nTarget z assigned: {len(z_targets)} slices to recon, {z_targets[0]:.3f} mm to {z_targets[-1]:.3f} mm \n\n')
     
     ### GET COORDINATES
     # beta: global angle to central row of projection
@@ -107,18 +101,16 @@ if __name__=='__main__':
     vz_mesh = np.meshgrid(v_coord[::-1], z0_rot)   # [::-1] to stack in ascending order
     vz_coord = vz_mesh[0].flatten() + vz_mesh[1].flatten()
     vz_coord = np.float32(vz_coord)
-    print(f'[{time()-t0:.1f} s] projections grouped by beta')
+    if verbose:
+        print(f'[{time()-t0:.1f} s] projections grouped by beta')
 
 
     ### FILTER DATA
     # alpha: cone angle for each row
     t0 = time()
-    if do_cone_filter:
-        alpha_coord = np.array([(j - rows//2 + 0.5) * sz_row for j in range(rows)], dtype=np.float32)/SDD
-        w3D = get_w3D(alpha_coord, np.max(alpha_coord), kl)
-        data_beta_flat = np.reshape([rotproj*np.tile(w3D,[cols,N_rot]).T for rotproj in data_beta], [N_proj*rows, cols])
-    else:
-        data_beta_flat = np.reshape(data_beta, [N_proj*rows, cols])
+    alpha_coord = np.array([(j - rows//2 + 0.5) * sz_row for j in range(rows)], dtype=np.float32)/SDD
+    w3D = get_w3D(alpha_coord, np.max(alpha_coord), kl)
+    data_beta_flat = np.reshape([rotproj*np.tile(w3D,[cols,N_rot]).T for rotproj in data_beta], [N_proj*rows, cols])
     del data_beta
     
     # G: fanbeam ramplike filter 
@@ -128,10 +120,10 @@ if __name__=='__main__':
     del qm_flat
     q_filtered = np.reshape(qm_flat_filtered,  [N_proj_rot, N_rot*rows, cols])
     del qm_flat_filtered
-    print(f'[{time()-t0:.1f} s] projection data preprocessed')
+    if verbose:
+        print(f'[{time()-t0:.1f} s] projection data preprocessed')
 
     
-    ######################################################################
     ######################################################################
     
     t0 = time()
@@ -145,13 +137,8 @@ if __name__=='__main__':
     
         # get sinograms
         sino = get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width)        # data sinogram
-        if do_cone_filter:
-            w3D_rays = np.tile(np.reshape(w3D, [1,rows,1]), [N_proj_rot, N_rot, cols])
-            w_sino = get_sinogram(w3D_rays, dz_proj, vz_coord, z_target, z_width)       # weights
-            del w3D
-            del w3D_rays
-        else:
-            w_sino = np.ones(sino.shape, dtype=np.float32)
+        w3D_rays = np.tile(np.reshape(w3D, [1,rows,1]), [N_proj_rot, N_rot, cols])
+        w_sino = get_sinogram(w3D_rays, dz_proj, vz_coord, z_target, z_width)       # weights
     
         # check sinograms
         if check_sinograms:
@@ -165,9 +152,13 @@ if __name__=='__main__':
             np.save('output/test_weights.npy', w_sino)
 
         # recon
-        recon = do_recon(sino, w_sino, dbeta_proj, gamma_coord,                  
+        if use_GPU:
+            recon = do_recon_gpu(sino, w_sino, 
+                    gamma_target_M, L2_M, gamma_coord, dbeta_proj)
+        else:
+            recon = do_recon(sino, w_sino, dbeta_proj, gamma_coord,                  
                      r_M, theta_M, gamma_target_M, L2_M, ji_coord,
-                     verbose=True)
+                     verbose=verbose)
         
         # convert units
         recon_HU = get_HU(recon)  
@@ -175,18 +166,36 @@ if __name__=='__main__':
         # save image
         filename = os.path.join(output_dir, f'{i_target+1:03}.dcm')
         img_to_dcm(recon_HU, filename, z_width, z_target, ramp_percent, kl)
-                   
+        if verbose:
+            print(f'\t{filename} finished')
 
-    #args = [(q_filtered, SID, dbeta_proj, dz_proj, gamma_coord, vz_coord, z_target, z_width, N_matrix, FOV) for z_target in z_targets]
-    #with mp.Pool(5) as pool:    # multiprocessing
-    #    pool.starmap(do_recon, args)
-    
-    # for z_target in z_targets:
-    #     matrix_z = do_recon(q_filtered, SID, dbeta_proj, dz_proj, gamma_coord, vz_coord, 
-    #                         z_target, z_width, N_matrix, FOV, verbose=True)
-    
-    print(f'[{time()-t0:.1f} s] images reconstructed')
+    if verbose:               
+        print(f'[{time()-t0:.1f} s] images reconstructed')
 
     
-    # save output
+##########################################################################
+
+
+if __name__=='__main__':
+
+    #proj_dir =  'input/dcmproj_liver/dcm_134'
+    #proj_dir = 'input/dcmproj_lung_lesion/dcm_067/'
     
+    main_dir = 'input/dcmproj_liver'
+    z_width = 1.5
+    ramp_percent = 0.50  
+    kl = 1.0
+    
+    #main_dir = 'input/dcmproj_lung_lesion'
+    #z_width = 0.5467
+    #ramp_percent = 0.85  
+    #kl = 1.0
+    
+    for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
+        proj_dir = os.path.join(main_dir, case_id)
+        print(proj_dir)
+        print()
+        
+        main(proj_dir, z_width, ramp_percent, kl )
+
+
