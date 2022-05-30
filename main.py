@@ -129,7 +129,11 @@ def main(proj_dir, z_width, ramp_percent, kl, verbose=False):
     t0 = time()
     
     output_dir = make_output_dir(proj_dir) 
-    
+    # temp for testing!! glj
+    output_dir = os.path.join(output_dir, f'ramp_{ramp_percent:.2f}_kl_{kl:.2f}')
+    if not os.path.isdir(output_dir):
+        os.mkdir(output_dir)
+
     # get recon matrix coordinates
     ji_coord, r_M, theta_M, gamma_target_M, L2_M = get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj, SID)
     
@@ -156,8 +160,8 @@ def main(proj_dir, z_width, ramp_percent, kl, verbose=False):
             recon = do_recon_gpu(sino, w_sino, 
                     gamma_target_M, L2_M, gamma_coord, dbeta_proj)
         else:
-            recon = do_recon(sino, w_sino, dbeta_proj, gamma_coord,                  
-                     r_M, theta_M, gamma_target_M, L2_M, ji_coord,
+            recon = do_recon(sino, w_sino, dbeta_proj, gamma_coord,      
+                     gamma_target_M, L2_M, ji_coord,
                      verbose=verbose)
         
         # convert units
@@ -183,19 +187,55 @@ if __name__=='__main__':
     
     main_dir = 'input/dcmproj_liver'
     z_width = 1.5
-    ramp_percent = 0.50  
-    kl = 1.0
-    
-    #main_dir = 'input/dcmproj_lung_lesion'
-    #z_width = 0.5467
-    #ramp_percent = 0.85  
-    #kl = 1.0
+    ramp_percents = np.arange(0.3, 1.0, 0.1)
+    kls = np.arange(0.4, 1.01, 0.1)
     
     for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
         proj_dir = os.path.join(main_dir, case_id)
         print(proj_dir)
-        print()
         
-        main(proj_dir, z_width, ramp_percent, kl )
+        for kl in kls: 
+            print(kl)
+            main(proj_dir, z_width, 0.85, kl)
+        
+        for ramp_percent in ramp_percents:
+            print(ramp_percent)
+            main(proj_dir, z_width, ramp_percent, 0.9)
+
+
+    main_dir = 'input/dcmproj_lung_lesion'
+    z_width = 0.5467
+    ramp_percents = np.arange(0.6, 1.01, 0.1)
+    kls = np.arange(0.4, 1.01, 0.1)
+
+    for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
+        proj_dir = os.path.join(main_dir, case_id)
+        print(proj_dir)
+        
+        for kl in kls: 
+            print(kl)
+            main(proj_dir, z_width, 0.85, kl)
+        
+        for ramp_percent in ramp_percents:
+            print(ramp_percent)
+            main(proj_dir, z_width, ramp_percent, 0.9)
+    
+    
+    main_dir = 'input/dcmproj_copd'
+    z_width = 0.5467
+    ramp_percents = np.arange(0.6, 1.01, 0.1)
+    kls = np.arange(0.4, 1.01, 0.1)
+
+    for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
+        proj_dir = os.path.join(main_dir, case_id)
+        print(proj_dir)
+        
+        for kl in kls: 
+            print(kl)
+            main(proj_dir, z_width, 0.85, kl)
+        
+        for ramp_percent in ramp_percents:
+            print(ramp_percent)
+            main(proj_dir, z_width, ramp_percent, 0.9)
 
 

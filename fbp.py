@@ -96,8 +96,8 @@ def lerp(v0, v1, t):
     return (1-t)*v0 + t*v1
 
 
-def do_recon(sinogram, w_sinogram, dbeta_proj, gamma_coord,                  
-             r_matrix, theta_matrix, gamma_target_matrix_all, L2_matrix_all, ji_coord,
+def do_recon(sinogram, w_sinogram, dbeta_proj, gamma_coord,         
+             gamma_target_matrix_all, L2_matrix_all, ji_coord,
              verbose=False):
     '''
     Main reconstruction program. Reconstructs the sinogram and normalizes by the provided weights.
@@ -112,10 +112,6 @@ def do_recon(sinogram, w_sinogram, dbeta_proj, gamma_coord,
         Change in beta angle for each projection [rad].
     gamma_coord : 1D array
         Local angle coordinate for each column [rad].
-    r_matrix : 2D array
-        polar r coordinate for each (i,j) to recon.
-    theta_matrix : 2D array
-        polar theta coordinate for each (i,j) to recon.
     gamma_target_matrix_all : 3D array
         gamma targets for linear interpolation for each (i,j,beta)
     L2_matrix_all : 3D array
@@ -133,8 +129,8 @@ def do_recon(sinogram, w_sinogram, dbeta_proj, gamma_coord,
     '''
     t0 = time()
 
-    matrix = np.zeros(r_matrix.shape)    
-    w_matrix = np.zeros(r_matrix.shape)  
+    matrix = np.zeros(L2_matrix_all[0].shape)    
+    w_matrix = np.zeros(L2_matrix_all[0].shape)  
     
     for i_beta in range(len(sinogram)):
         proj_z = sinogram[i_beta] # fan-beam data at this z
