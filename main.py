@@ -9,8 +9,7 @@ Created on Fri May 27 11:06:36 2022
 import os 
 import numpy as np
 from time import time
-#from datetime import datetime
-#import multiprocessing as mp
+from datetime import datetime
 
 from file_manager import read_dcm_proj, make_output_dir, img_to_dcm
 from preprocess import get_G, get_w3D
@@ -206,12 +205,12 @@ if __name__=='__main__':
         print(f'organ {organ} not valid argument')
 
     case_files = sorted([x for x in os.listdir(main_dir) if 'dcm_' in x]) 
-    
+    print(case_files)
     for case_id in case_files:
         proj_dir = os.path.join(main_dir, case_id)
         now = datetime.now()
-        print(f'\n[{now.strftime("%Y_%m_%d_%H_%M_%S")}] {proj_dir}')
-        main(proj_dir, z_width, ramp_percent, kl, detail_mode)
+    #    print(f'\n[{now.strftime("%Y_%m_%d_%H_%M_%S")}] {proj_dir}')
+    #    main(proj_dir, z_width, ramp_percent, kl, detail_mode)
         
 
 
