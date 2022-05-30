@@ -11,8 +11,12 @@ def do_recon_gpu(sino, w_sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj):
     dgamma = gamma_coord[1]-gamma_coord[0]
 
     # block/thread allocation warning
-    if N_matrix > 512:
-        print(f'may need to manually adjust GPU block/thread allocation for {N_matrix} size')
+    block_max=1024
+    if N_matrix > block_max:
+        print(f'need to manually set GPU block/thread for large matrix {N_matrix} > {block_max}')
+    
+    if np.log2(N_matrix)%1==0:
+        print(f'may need to manually set GPU block/thread for {N_matrix} size (not power of 2)')
 
     kernel_code_template = """
         #include <math.h>
@@ -82,7 +86,7 @@ def do_recon_gpu(sino, w_sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj):
     # do the recon
     matrix = gpuarray.empty([N_matrix, N_matrix], np.float32)
     do_recon_gpu(matrix, sino, w_sino, gamma_target_M, L2_M, 
-                 block=(N_matrix, 1, 1), grid=(1,N_matrix))
+                 block=(N_matrix, block_max//N_matrix, 1), grid=(1,N_matrix//(block_max//N_matrix)))
 
     return matrix.get()
 

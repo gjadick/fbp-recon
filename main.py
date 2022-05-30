@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 ##########################################################################
 
-def main(proj_dir, z_width, ramp_percent, kl, verbose=False):
+def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False):
  
     ### ACQUISITION PARAMS
     
@@ -109,7 +109,7 @@ def main(proj_dir, z_width, ramp_percent, kl, verbose=False):
     # alpha: cone angle for each row
     t0 = time()
     alpha_coord = np.array([(j - rows//2 + 0.5) * sz_row for j in range(rows)], dtype=np.float32)/SDD
-    w3D = get_w3D(alpha_coord, np.max(alpha_coord), kl)
+    w3D = get_w3D(alpha_coord, np.max(alpha_coord), kl, detail_mode=detail_mode)
     data_beta_flat = np.reshape([rotproj*np.tile(w3D,[cols,N_rot]).T for rotproj in data_beta], [N_proj*rows, cols])
     del data_beta
     
@@ -179,7 +179,6 @@ def main(proj_dir, z_width, ramp_percent, kl, verbose=False):
     
 ##########################################################################
 
-
 if __name__=='__main__':
 
     #proj_dir =  'input/dcmproj_liver/dcm_134'
@@ -189,53 +188,49 @@ if __name__=='__main__':
     z_width = 1.5
     ramp_percents = np.arange(0.3, 1.0, 0.1)
     kls = np.arange(0.4, 1.01, 0.1)
+    detail_mode = False
     
-    for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
-        proj_dir = os.path.join(main_dir, case_id)
-        print(proj_dir)
+#    for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
+#        proj_dir = os.path.join(main_dir, case_id)
+#        print(proj_dir)
         
-        for kl in kls: 
-            print(kl)
-            main(proj_dir, z_width, 0.85, kl)
+#        for kl in kls: 
+#            print(kl)
+#            main(proj_dir, z_width, 0.85, kl)
         
-        for ramp_percent in ramp_percents:
-            print(ramp_percent)
-            main(proj_dir, z_width, ramp_percent, 0.9)
+#        for ramp_percent in ramp_percents:
+#            print(ramp_percent)
+#            main(proj_dir, z_width, ramp_percent, 0.9)
 
 
     main_dir = 'input/dcmproj_lung_lesion'
     z_width = 0.5467
     ramp_percents = np.arange(0.6, 1.01, 0.1)
     kls = np.arange(0.4, 1.01, 0.1)
+    detail_mode = False
 
-    for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
-        proj_dir = os.path.join(main_dir, case_id)
-        print(proj_dir)
-        
-        for kl in kls: 
-            print(kl)
-            main(proj_dir, z_width, 0.85, kl)
-        
-        for ramp_percent in ramp_percents:
-            print(ramp_percent)
-            main(proj_dir, z_width, ramp_percent, 0.9)
+
+#    for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
+#        proj_dir = os.path.join(main_dir, case_id)
+#        print(proj_dir)
+#        
+#        for kl in kls: 
+#            print(kl)
+#            main(proj_dir, z_width, 0.85, kl)
+#        
+#        for ramp_percent in ramp_percents:
+#            print(ramp_percent)
+#            main(proj_dir, z_width, ramp_percent, 0.9)
     
     
     main_dir = 'input/dcmproj_copd'
     z_width = 0.5467
     ramp_percents = np.arange(0.6, 1.01, 0.1)
     kls = np.arange(0.4, 1.01, 0.1)
-
+    detail_mode = False
     for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
         proj_dir = os.path.join(main_dir, case_id)
         print(proj_dir)
-        
-        for kl in kls: 
-            print(kl)
-            main(proj_dir, z_width, 0.85, kl)
-        
-        for ramp_percent in ramp_percents:
-            print(ramp_percent)
-            main(proj_dir, z_width, ramp_percent, 0.9)
+        main(proj_dir, z_width, ramp_percent, kl, detail_mode )
 
 

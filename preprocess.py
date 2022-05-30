@@ -21,9 +21,20 @@ def get_G(gamma_coord, cols, s, fc):
     return G
 
 
-def get_w3D(a, a_m, kl):
+def get_w3D(a, a_m, kl, detail_mode=False):
+    '''
+    Get weights for 3D imaging, to help correct some cone beam artifacts.
+    Returns weights between 0.5 and 1 (or between 0 and 1 for "detail_mode")
+    - a: "alpha" [rad] the cone beam angle of interest
+    - a_m: "alpha_max" [rad] the maximum cone beam angle for the 2D detector array
+    - kl: a correction weighting parameter between 0 and 1
+    - detail_mode: (bool) rescale weights to range from 0 to 1
+    '''
     # get initial weighting based on tan function
     w3D_raw = 1 / (1 + (np.tan(np.abs(a))/np.tan(np.abs(a_m)))**kl)
-    # rescale weights to range 0 to 1 (instead of 0.5 to 1)
-    w3D = 2*(w3D_raw - 0.5) + 1-np.max(w3D_raw)
+    
+    # for detail mode, rescale weights to range 0 to 1 (instead of 0.5 to 1)
+    if detail_mode:
+        w3D = 2*(w3D_raw - 0.5) + 1-np.max(w3D_raw)
+    
     return np.float32(w3D)
