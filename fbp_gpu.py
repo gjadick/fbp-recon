@@ -15,9 +15,14 @@ def do_recon_gpu(sino, w_sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj):
     if N_matrix > block_max:
         print(f'need to manually set GPU block/thread for large matrix {N_matrix} > {block_max}')
     
-    if np.log2(N_matrix)%1==0:
+    if np.log2(N_matrix)%1!=0:
         print(f'may need to manually set GPU block/thread for {N_matrix} size (not power of 2)')
 
+    block_gpu=(N_matrix, block_max//N_matrix, 1)
+    grid_gpu=(1,N_matrix//(block_max//N_matrix))
+    print('GPU block', block_gpu)
+    print('GPU grid', grid_gpu)
+    
     kernel_code_template = """
         #include <math.h>
     
@@ -86,7 +91,7 @@ def do_recon_gpu(sino, w_sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj):
     # do the recon
     matrix = gpuarray.empty([N_matrix, N_matrix], np.float32)
     do_recon_gpu(matrix, sino, w_sino, gamma_target_M, L2_M, 
-                 block=(N_matrix, block_max//N_matrix, 1), grid=(1,N_matrix//(block_max//N_matrix)))
+                 block=block_gpu, grid=grid_gpu)
 
     return matrix.get()
 
