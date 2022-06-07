@@ -13,8 +13,8 @@ from datetime import datetime
 
 from file_manager import read_dcm_proj, make_output_dir, img_to_dcm
 from preprocess import get_G, get_w3D, do_conjugate_ray_weighting
-from fbp import get_recon_coords, get_sinogram, do_recon    
-from fbp_gpu import do_recon_gpu
+from fbp import get_recon_coords, get_sinogram, do_recon, do_recon_weights    
+from fbp_gpu import do_recon_gpu, do_recon_weights_gpu
 from postprocess import get_HU
 
 import matplotlib.pyplot as plt
@@ -144,10 +144,9 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
         print(f'[{i_target+1:03}/{len(z_targets):03}] {z_target:.3f} mm, {time()-t0:.1f} s') 
         
         filename = os.path.join(output_dir, f'{i_target+1:03}.dcm')
-        # get sinograms
+
+        # get sinogram
         sino = get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width)        # data sinogram
-        w3D_rays = np.tile(np.reshape(w3D, [1,rows,1]), [N_proj_rot, N_rot, cols])
-        w_sino = get_sinogram(w3D_rays, dz_proj, vz_coord, z_target, z_width)       # weights
     
         # check sinograms
         if check_sinograms:
@@ -161,11 +160,21 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
             np.save('output/test_weights.npy', w_sino)
 
         # recon
-        if use_GPU:
-            recon = do_recon_gpu(sino, w_sino, 
-                    gamma_target_M, L2_M, gamma_coord, dbeta_proj)
+        if do_conjugate_weighting:
+            if use_GPU:
+                recon = do_recon_gpu(sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj)
+            else:
+                recon = do_recon(sino, dbeta_proj, gamma_coord,      
+                     gamma_target_M, L2_M, ji_coord, verbose=verbose)
+        
         else:
-            recon = do_recon(sino, w_sino, dbeta_proj, gamma_coord,      
+            w3D_rays = np.tile(np.reshape(w3D, [1,rows,1]), [N_proj_rot, N_rot, cols])
+            w_sino = get_sinogram(w3D_rays, dz_proj, vz_coord, z_target, z_width)       # weights
+            if use_GPU:
+                recon = do_recon_weights_gpu(sino, w_sino, 
+                    gamma_target_M, L2_M, gamma_coord, dbeta_proj)
+            else:
+                recon = do_recon_weights(sino, w_sino, dbeta_proj, gamma_coord,      
                      gamma_target_M, L2_M, ji_coord,
                      verbose=verbose)
         

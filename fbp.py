@@ -11,7 +11,7 @@ import numpy as np
 from time import time
 
 import matplotlib.pyplot as plt
-
+from datetime import datetime
 
 
 def get_angle(x,y):
@@ -21,7 +21,7 @@ def get_angle(x,y):
         theta += np.pi
     elif y < 0: # quadrant 4
         theta += 2*np.pi
-    return theta
+    return theta    
 
 
 def get_L2(r, theta, beta, SID):
@@ -96,7 +96,63 @@ def lerp(v0, v1, t):
     return (1-t)*v0 + t*v1
 
 
-def do_recon(sinogram, w_sinogram, dbeta_proj, gamma_coord,         
+def do_recon(sinogram, dbeta_proj, gamma_coord,                  
+             gamma_target_matrix_all, L2_matrix_all, ji_coord,
+             verbose=False):
+    '''
+    Main reconstruction program. Reconstructs the sinogram.
+
+    Parameters
+    ----------
+    sinogram : 2D matrix
+        Pre-processed sinogram for reconstruction.
+    dbeta_proj : float
+        Change in beta angle for each projection [rad].
+    gamma_coord : 1D array
+        Local angle coordinate for each column [rad].
+    gamma_target_matrix_all : 3D array
+        gamma targets for linear interpolation for each (i,j,beta)
+    L2_matrix_all : 3D array
+        L^2 normalization factors for each (i,j,beta)
+    ji_coord : 2D array
+        List of the [j,i] coordinates (corresponding to y, x in recon matrix)
+    verbose : bool, optional
+        whether to print timing. The default is False.
+
+    Returns
+    -------
+    2D matrix
+        the reconstruction.
+
+    '''
+    t0 = time()
+
+    matrix = np.zeros(L2_matrix_all[0].shape
+    
+    for i_beta in range(len(sinogram)):
+        proj_z = sinogram[i_beta] # fan-beam data at this z
+        
+        if verbose:
+            if i_beta%100 == 0:
+                print(f' {100*i_beta/len(sinogram):5.1f}%: {time()-t0:.3f} s')
+        
+        L2_matrix = L2_matrix_all[i_beta]         # matrix with L^2 factors
+        gamma_max  = np.max(gamma_coord)
+        dgamma = gamma_coord[1]-gamma_coord[0]
+        for j,i  in ji_coord:
+            gamma_target = gamma_target_matrix_all[i_beta,j,i]
+            if np.abs(gamma_target) >= gamma_max:
+                pass
+            else:
+                i_gamma0 = int((gamma_target + gamma_max)//dgamma)
+                t = (dgamma*(i_gamma0+1) - gamma_max - gamma_target)/dgamma
+                this_q = lerp(proj_z[i_gamma0], proj_z[i_gamma0 + 1], t)
+                matrix[j,i] += this_q * dbeta_proj  / L2_matrix[j,i]  
+
+    return matrix
+
+
+def do_recon_weights(sinogram, w_sinogram, dbeta_proj, gamma_coord,                  
              gamma_target_matrix_all, L2_matrix_all, ji_coord,
              verbose=False):
     '''
@@ -129,8 +185,8 @@ def do_recon(sinogram, w_sinogram, dbeta_proj, gamma_coord,
     '''
     t0 = time()
 
-    matrix = np.zeros(L2_matrix_all[0].shape)    
-    w_matrix = np.zeros(L2_matrix_all[0].shape)  
+    matrix = np.zeros(L2_matrix_all[0].shape
+    w_matrix = np.zeros(L2_matrix_all[0].shape
     
     for i_beta in range(len(sinogram)):
         proj_z = sinogram[i_beta] # fan-beam data at this z
@@ -157,3 +213,4 @@ def do_recon(sinogram, w_sinogram, dbeta_proj, gamma_coord,
 
     return matrix/w_matrix
 
+        
