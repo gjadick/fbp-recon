@@ -38,7 +38,7 @@ def get_w3D(a, a_m, kl, detail_mode=False):
         w3D = 2*(w3D_raw - 0.5) + 1-np.max(w3D_raw)
     else:
         w3D = w3D_raw
-        
+    
     return np.float32(w3D)
 
 

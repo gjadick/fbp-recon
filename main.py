@@ -9,8 +9,7 @@ Created on Fri May 27 11:06:36 2022
 import os 
 import numpy as np
 from time import time
-#from datetime import datetime
-#import multiprocessing as mp
+from datetime import datetime
 
 from file_manager import read_dcm_proj, make_output_dir, img_to_dcm
 from preprocess import get_G, get_w3D, do_conjugate_ray_weighting
@@ -68,7 +67,7 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
    
     # assign z_targets for a full scan
     z_targets = np.arange(BC, (N_rot-1)*BC, z_width) + z_width/2
-    print(f'\nTarget z assigned: {len(z_targets)} slices to recon, {z_targets[0]:.3f} mm to {z_targets[-1]:.3f} mm \n\n')
+    print(f'Target z assigned: {len(z_targets)} slices to recon, {z_targets[0]:.3f} mm to {z_targets[-1]:.3f} mm')
     
     ### GET COORDINATES
     # beta: global angle to central row of projection
@@ -142,7 +141,9 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
     ji_coord, r_M, theta_M, gamma_target_M, L2_M = get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj, SID)
     
     for i_target, z_target in enumerate(z_targets):
-    
+        print(f'[{i_target+1:03}/{len(z_targets):03}] {z_target:.3f} mm, {time()-t0:.1f} s') 
+        
+        filename = os.path.join(output_dir, f'{i_target+1:03}.dcm')
         # get sinograms
         sino = get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width)        # data sinogram
         w3D_rays = np.tile(np.reshape(w3D, [1,rows,1]), [N_proj_rot, N_rot, cols])
@@ -164,8 +165,8 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
             recon = do_recon_gpu(sino, w_sino, 
                     gamma_target_M, L2_M, gamma_coord, dbeta_proj)
         else:
-            recon = do_recon(sino, w_sino, dbeta_proj, gamma_coord,                  
-                     r_M, theta_M, gamma_target_M, L2_M, ji_coord,
+            recon = do_recon(sino, w_sino, dbeta_proj, gamma_coord,      
+                     gamma_target_M, L2_M, ji_coord,
                      verbose=verbose)
         
         # convert units
@@ -183,29 +184,41 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
     
 ##########################################################################
 
-
 if __name__=='__main__':
 
-    #proj_dir =  'input/dcmproj_liver/dcm_134'
-    #proj_dir = 'input/dcmproj_lung_lesion/dcm_067/'
-    
-    main_dir = 'input/dcmproj_liver'
-    z_width = 1.5
-    ramp_percent = 0.50  
-    kl = 1.0
-    detail_mode = False
+    organ = 'liver' # must be liver, lung, copd
 
-    #main_dir = 'input/dcmproj_lung_lesion'
-    #z_width = 0.5467
-    #ramp_percent = 0.85  
-    #kl = 1.0
-    #detail_mode = True
+    if organ=='liver':
+        main_dir = 'input/dcmproj_liver'
+        z_width = 1.5
+        ramp_percent = 0.40
+        kl = 0.40
+        detail_mode = False
+
+    elif organ=='lung':
+        main_dir = 'input/dcmproj_lung_lesion'
+        z_width = 0.5467
+        ramp_percents = 0.60
+        kl = 1.0 
+        detail_mode = True
+
+    elif organ=='copd':
+        main_dir = 'input/dcmproj_copd'
+        z_width = 0.5467
+        ramp_percents = 0.90
+        kl = 1.0 
+        detail_mode = True
     
-    for case_id in sorted([x for x in os.listdir(main_dir) if 'dcm_' in x])[:1]:  # 0 for test!
+    else: 
+        print(f'organ {organ} not valid argument')
+
+    case_files = sorted([x for x in os.listdir(main_dir) if 'dcm_' in x]) 
+    
+    for case_id in case_files:
         proj_dir = os.path.join(main_dir, case_id)
-        print(proj_dir)
-        print()
+        now = datetime.now()
+        print(f'\n[{now.strftime("%Y_%m_%d_%H_%M_%S")}] {proj_dir}')
+        main(proj_dir, z_width, ramp_percent, kl, detail_mode)
         
-        main(proj_dir, z_width, ramp_percent, kl, detail_mode )
 
 
