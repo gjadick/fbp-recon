@@ -13,7 +13,7 @@ from time import time
 #import multiprocessing as mp
 
 from file_manager import read_dcm_proj, make_output_dir, img_to_dcm
-from preprocess import get_G, get_w3D
+from preprocess import get_G, get_w3D, do_conjugate_ray_weighting
 from fbp import get_recon_coords, get_sinogram, do_recon    
 from fbp_gpu import do_recon_gpu
 from postprocess import get_HU
@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 ##########################################################################
 
-def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False):
+def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, conjugate_weighting=False):
  
     ### ACQUISITION PARAMS
     
@@ -110,8 +110,16 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False):
     t0 = time()
     alpha_coord = np.array([(j - rows//2 + 0.5) * sz_row for j in range(rows)], dtype=np.float32)/SDD
     w3D = get_w3D(alpha_coord, np.max(alpha_coord), kl, detail_mode=detail_mode)
-    data_beta_flat = np.reshape([rotproj*np.tile(w3D,[cols,N_rot]).T for rotproj in data_beta], [N_proj*rows, cols])
+    
+    if conjugate_weighting:
+        data_beta_flat = np.reshape(do_conjugate_ray_weighting(data_beta, w3D, cols, gamma_coord, vz_coord, dbeta_proj, dz_proj), [N_proj*rows, cols])
+
+    else:
+        data_beta_flat = np.reshape([rotproj*np.tile(w3D,[cols,N_rot]).T for rotproj in data_beta], [N_proj*rows, cols])
+    
     del data_beta
+    
+
     
     # G: fanbeam ramplike filter 
     G = get_G(gamma_coord, cols, s, fc)
