@@ -148,10 +148,16 @@ def make_output_dir(proj_dir):
                  'dcmproj_lung_lesion': 'output/lung_',
                  'dcmproj_liver': 'output/liver_'
                  }
-    N = case_id.split('_')[1]
+    
+    N0_id =     {'dcmproj_copd': 0,
+                 'dcmproj_lung_lesion': 67,
+                 'dcmproj_liver': 134
+                 }
+    
+    N = int(case_id.split('_')[1]) - N0_id[proj_id] + 1
     
     # check directory existence
-    output_dir = output_id[proj_id] + N
+    output_dir = output_id[proj_id] + f'{N:02}'
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)    
 

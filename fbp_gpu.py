@@ -47,8 +47,8 @@ def do_recon_gpu(sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj):
 
         
             // check if pixel within max radius
-            if( sqrt( pow(i+0.5-N_matrix/2, 2) + pow(j+0.5-N_matrix/2, 2) < N_matrix/2) {
 
+            if( sqrt( powf( (float)i + 0.5 - (float)N_matrix/2 , 2) +  powf( (float)j + 0.5 - (float)N_matrix/2 , 2) ) < (float)N_matrix/2 ) {
                 for(int i_beta=0; i_beta < N_proj; i_beta++) {
                     float L2 =           L2_M          [ i_beta*N_matrix*N_matrix + j*N_matrix + i ];
                     float gamma_target = gamma_target_M[ i_beta*N_matrix*N_matrix + j*N_matrix + i ];
@@ -59,7 +59,6 @@ def do_recon_gpu(sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj):
                     
                         // linear interp
                         float this_q = (1-t)*sino[ i_beta*N_cols + i_gamma0] +   t*sino[ i_beta*N_cols  + i_gamma0 + 1];
-                        float this_w = (1-t)*w_sino[ i_beta*N_cols + i_gamma0] + t*w_sino[ i_beta*N_cols + i_gamma0 + 1];
                 
                         // add to results
                         result = result + (this_q * dbeta_proj / L2);

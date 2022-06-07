@@ -67,6 +67,9 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
    
     # assign z_targets for a full scan
     z_targets = np.arange(BC, (N_rot-1)*BC, z_width) + z_width/2
+    # GLJ TEST
+    z_targets = z_targets[:10]
+    
     print(f'Target z assigned: {len(z_targets)} slices to recon, {z_targets[0]:.3f} mm to {z_targets[-1]:.3f} mm')
     
     ### GET COORDINATES
@@ -111,7 +114,7 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
     w3D = get_w3D(alpha_coord, np.max(alpha_coord), kl, detail_mode=detail_mode)
     
     if conjugate_weighting:
-        data_beta_flat = np.reshape(do_conjugate_ray_weighting(data_beta, w3D, cols, gamma_coord, vz_coord, dbeta_proj, dz_proj), [N_proj*rows, cols])
+        data_beta_flat = np.reshape(do_conjugate_ray_weighting(data_beta, w3D, rows, cols, N_rot, gamma_coord, vz_coord, dbeta_proj, dz_proj), [N_proj*rows, cols])
 
     else:
         data_beta_flat = np.reshape([rotproj*np.tile(w3D,[cols,N_rot]).T for rotproj in data_beta], [N_proj*rows, cols])
@@ -135,7 +138,10 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
     
     t0 = time()
     
-    output_dir = make_output_dir(proj_dir) 
+    output_dir = make_output_dir(proj_dir)
+
+    # GLJ TEST
+    output_dir = output_dir + f'_conj{conjugate_weighting}' 
     
     # get recon matrix coordinates
     ji_coord, r_M, theta_M, gamma_target_M, L2_M = get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj, SID)
@@ -143,7 +149,7 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
     for i_target, z_target in enumerate(z_targets):
         print(f'[{i_target+1:03}/{len(z_targets):03}] {z_target:.3f} mm, {time()-t0:.1f} s') 
         
-        filename = os.path.join(output_dir, f'{i_target+1:03}.dcm')
+        filename = os.path.join(output_dir, f'{i_target+1:04}.dcm')
 
         # get sinogram
         sino = get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width)        # data sinogram
@@ -152,15 +158,15 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
         if check_sinograms:
             fig,ax=plt.subplots(1,2,dpi=150,figsize=[8,3])
             ax[0].imshow(sino)
-            ax[1].imshow(w_sino)
+            #ax[1].imshow(w_sino)
             plt.show()
             
         if save_sinograms:
             np.save('output/test_sinogram.npy', sino)
-            np.save('output/test_weights.npy', w_sino)
+            #np.save('output/test_weights.npy', w_sino)
 
         # recon
-        if do_conjugate_weighting:
+        if conjugate_weighting:
             if use_GPU:
                 recon = do_recon_gpu(sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj)
             else:
@@ -195,7 +201,8 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
 
 if __name__=='__main__':
 
-    organ = 'liver' # must be liver, lung, copd
+    #organ = 'liver' # must be liver, lung, copd
+    organ = 'lung'
 
     if organ=='liver':
         main_dir = 'input/dcmproj_liver'
@@ -207,14 +214,14 @@ if __name__=='__main__':
     elif organ=='lung':
         main_dir = 'input/dcmproj_lung_lesion'
         z_width = 0.5467
-        ramp_percents = 0.60
+        ramp_percent = 0.60
         kl = 1.0 
         detail_mode = True
 
     elif organ=='copd':
         main_dir = 'input/dcmproj_copd'
         z_width = 0.5467
-        ramp_percents = 0.90
+        ramp_percent = 0.90
         kl = 1.0 
         detail_mode = True
     
@@ -222,12 +229,15 @@ if __name__=='__main__':
         print(f'organ {organ} not valid argument')
 
     case_files = sorted([x for x in os.listdir(main_dir) if 'dcm_' in x]) 
-    
+   
+    # GLJ TEST
+    case_files = case_files[:1]
     for case_id in case_files:
         proj_dir = os.path.join(main_dir, case_id)
         now = datetime.now()
         print(f'\n[{now.strftime("%Y_%m_%d_%H_%M_%S")}] {proj_dir}')
-        main(proj_dir, z_width, ramp_percent, kl, detail_mode)
-        
+        #main(proj_dir, z_width, ramp_percent, kl, detail_mode)
+        for conjugate_mode in [True, False]:
+            main(proj_dir, z_width, ramp_percent, kl, detail_mode, conjugate_weighting=conjugate_mode)
 
 

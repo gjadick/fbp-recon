@@ -127,7 +127,7 @@ def do_recon(sinogram, dbeta_proj, gamma_coord,
     '''
     t0 = time()
 
-    matrix = np.zeros(L2_matrix_all[0].shape
+    matrix = np.zeros(L2_matrix_all[0].shape)
     
     for i_beta in range(len(sinogram)):
         proj_z = sinogram[i_beta] # fan-beam data at this z
@@ -185,8 +185,8 @@ def do_recon_weights(sinogram, w_sinogram, dbeta_proj, gamma_coord,
     '''
     t0 = time()
 
-    matrix = np.zeros(L2_matrix_all[0].shape
-    w_matrix = np.zeros(L2_matrix_all[0].shape
+    matrix = np.zeros(L2_matrix_all[0].shape)
+    w_matrix = np.zeros(L2_matrix_all[0].shape)
     
     for i_beta in range(len(sinogram)):
         proj_z = sinogram[i_beta] # fan-beam data at this z

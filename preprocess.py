@@ -48,9 +48,11 @@ def get_conjugate_proj(i_beta, q_orig, cols, gamma_coord, vz_coord, dbeta_proj, 
     using the fan-beam redundancy q(gamma, beta) = q(-gamma, beta + 2*gamma + pi)
     '''
     q_conjugate = np.zeros(q_orig[0].shape)
+    beta_coord = np.arange(0, 2*np.pi, dbeta_proj) 
     gamma_max = np.max(gamma_coord)
     dgamma = gamma_coord[1]-gamma_coord[0]
     dvz = vz_coord[1]-vz_coord[0]
+    N_proj_rot = q_orig.shape[0]
 
     for i_gamma in  range(cols):
 
@@ -89,8 +91,9 @@ def get_conjugate_proj(i_beta, q_orig, cols, gamma_coord, vz_coord, dbeta_proj, 
     return q_conjugate
 
 
-def do_conjugate_ray_weighting(data_beta, w3D, cols, gamma_coord, vz_coord, dbeta_proj, dz_proj):
-    
+def do_conjugate_ray_weighting(data_beta, w3D, rows, cols, N_rot, gamma_coord, vz_coord, dbeta_proj, dz_proj):
+   
+
     result = np.zeros(data_beta.shape)
     for i_beta in range(len(data_beta)):
         
