@@ -10,6 +10,8 @@ import os
 import pydicom
 import numpy as np
 from datetime import datetime
+from pathlib import Path
+
 
 def read_dcm_proj(proj_dir):
     '''
@@ -133,33 +135,19 @@ def img_to_dcm(img, filename, z_width, z_target, ramp_percent, kl, FOV=500):
     ds.save_as(filename)
 
 
-def make_output_dir(proj_dir):
+def make_output_dir(proj_dir, main_input_dir='input', main_output_dir='output'):
     '''
     Makes output directory for saving images in DCM format.
-    Output directory name is assigned based on input projection data pathname.
-    (assuming proj dir is of format 'input/dcmproj_lung_lesion/dcm_067')
+    Output directory name is assigned based on input projection data directory name,
+    by converting main_input_dir (default 'input') to main_output_dir (default 'output').
     ''' 
-    if proj_dir[-1]=='/':
-        proj_dir=proj_dir[:-1]
-        
-    io, proj_id, case_id = proj_dir.split('/')
+  
+    output_dir = proj_dir.replace(main_input_dir, main_output_dir)
     
-    output_id = {'dcmproj_copd': 'output/copd_',
-                 'dcmproj_lung_lesion': 'output/lung_',
-                 'dcmproj_liver': 'output/liver_'
-                 }
-    
-    N0_id =     {'dcmproj_copd': 0,
-                 'dcmproj_lung_lesion': 67,
-                 'dcmproj_liver': 134
-                 }
-    
-    N = int(case_id.split('_')[1]) - N0_id[proj_id] + 1
-    
-    # check directory existence
-    output_dir = output_id[proj_id] + f'{N:02}'
+    # check whether output directory exists
     if not os.path.isdir(output_dir):
-        os.mkdir(output_dir)    
+        path = Path(output_dir)
+        path.mkdir(parents=True)   # recursively make directory
 
     return output_dir
     
