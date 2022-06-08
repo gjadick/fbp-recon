@@ -46,14 +46,12 @@ def main(proj_dir, z_width, FOV, N_matrix, ramp_percent, kl, detail_mode=True, u
  
     ### ACQUISITION PARAMS
     
-    N_proj_rot = 1000 
-    rows = 64
-    cols = 900
-    sz_row = 1.0         # mm
-    sz_col = 1.0         # mm
+    N_proj_rot = 1000    # number of projections per rotation 
+    rows = 64            # number of rows in 2D detector array
+    cols = 900           # number of columns in 2D detector array
+    sz_row = 1.0         # mm, detector-plane height of one row
+    sz_col = 1.0         # mm, detector-plane width of one column 
     
-    kVp = 120.0          # kV
-    FSy, FSz = 1.0, 1.0  # mm
     BC = 35.05           # mm, beam collimation at isocenter
     SID = 575.0          # mm, source-isocenter distance 
     SDD = 1050.0         # mm, source-detector distance 
