@@ -6,6 +6,7 @@ Created on Fri May 27 11:06:36 2022
 @author: gjadick
 """
 
+import sys
 import os 
 import numpy as np
 from time import time
@@ -50,10 +51,6 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
     fN = 1/(2*s)          # Nyquist frequency
     fc = fN*ramp_percent  # cutoff frequency, percentage of fN
     
-    ### DEBUG PARAMS
-    check_sinograms = False
-    save_sinograms = False
-    
     ######################################################################
     
     ### READ DATA
@@ -67,9 +64,7 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
    
     # assign z_targets for a full scan
     z_targets = np.arange(BC, (N_rot-1)*BC, z_width) + z_width/2
-    # GLJ TEST
-    z_targets = z_targets[:10]
-    
+
     print(f'Target z assigned: {len(z_targets)} slices to recon, {z_targets[0]:.3f} mm to {z_targets[-1]:.3f} mm')
     
     ### GET COORDINATES
@@ -140,30 +135,14 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
     
     output_dir = make_output_dir(proj_dir)
 
-    # GLJ TEST
-    output_dir = output_dir + f'_conj{conjugate_weighting}' 
-    
     # get recon matrix coordinates
     ji_coord, r_M, theta_M, gamma_target_M, L2_M = get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj, SID)
     
     for i_target, z_target in enumerate(z_targets):
         print(f'[{i_target+1:03}/{len(z_targets):03}] {z_target:.3f} mm, {time()-t0:.1f} s') 
         
-        filename = os.path.join(output_dir, f'{i_target+1:04}.dcm')
-
         # get sinogram
-        sino = get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width)        # data sinogram
-    
-        # check sinograms
-        if check_sinograms:
-            fig,ax=plt.subplots(1,2,dpi=150,figsize=[8,3])
-            ax[0].imshow(sino)
-            #ax[1].imshow(w_sino)
-            plt.show()
-            
-        if save_sinograms:
-            np.save('output/test_sinogram.npy', sino)
-            #np.save('output/test_weights.npy', w_sino)
+        sino = get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width)        
 
         # recon
         if conjugate_weighting:
@@ -172,7 +151,8 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
             else:
                 recon = do_recon(sino, dbeta_proj, gamma_coord,      
                      gamma_target_M, L2_M, ji_coord, verbose=verbose)
-        
+            recon_HU = get_HU(recon, 0.0525587, -0.0047017)  
+
         else:
             w3D_rays = np.tile(np.reshape(w3D, [1,rows,1]), [N_proj_rot, N_rot, cols])
             w_sino = get_sinogram(w3D_rays, dz_proj, vz_coord, z_target, z_width)       # weights
@@ -183,12 +163,10 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
                 recon = do_recon_weights(sino, w_sino, dbeta_proj, gamma_coord,      
                      gamma_target_M, L2_M, ji_coord,
                      verbose=verbose)
-        
-        # convert units
-        recon_HU = get_HU(recon)  
-        
+            recon_HU = get_HU(recon, 9.528875, -1.0764065)
+
         # save image
-        filename = os.path.join(output_dir, f'{i_target+1:03}.dcm')
+        filename = os.path.join(output_dir, f'{i_target+1:04}.dcm')
         img_to_dcm(recon_HU, filename, z_width, z_target, ramp_percent, kl)
         if verbose:
             print(f'\t{filename} finished')
@@ -201,15 +179,15 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
 
 if __name__=='__main__':
 
-    #organ = 'liver' # must be liver, lung, copd
-    organ = 'lung'
+    organ = sys.argv[3] # must be liver, lung, copd
 
     if organ=='liver':
         main_dir = 'input/dcmproj_liver'
         z_width = 1.5
-        ramp_percent = 0.40
-        kl = 0.40
+        ramp_percent = 0.50
+        kl = 0.50
         detail_mode = False
+        conjugate_mode =  True
 
     elif organ=='lung':
         main_dir = 'input/dcmproj_lung_lesion'
@@ -217,6 +195,7 @@ if __name__=='__main__':
         ramp_percent = 0.60
         kl = 1.0 
         detail_mode = True
+        conjugate_mode =  True
 
     elif organ=='copd':
         main_dir = 'input/dcmproj_copd'
@@ -224,20 +203,23 @@ if __name__=='__main__':
         ramp_percent = 0.90
         kl = 1.0 
         detail_mode = True
+        conjugate_mode =  True
     
     else: 
         print(f'organ {organ} not valid argument')
 
+
     case_files = sorted([x for x in os.listdir(main_dir) if 'dcm_' in x]) 
-   
-    # GLJ TEST
-    case_files = case_files[:1]
+    N_tot = len(case_files)
+
+    # for multiple GPUs, divide cases into equal fractions
+    this_frac = int(sys.argv[1])
+    run_fracs = int(sys.argv[2])
+    case_files = case_files[int(N_tot*(this_frac-1)/run_fracs):int(N_tot*this_frac/run_fracs)] 
+    
     for case_id in case_files:
         proj_dir = os.path.join(main_dir, case_id)
         now = datetime.now()
         print(f'\n[{now.strftime("%Y_%m_%d_%H_%M_%S")}] {proj_dir}')
-        #main(proj_dir, z_width, ramp_percent, kl, detail_mode)
-        for conjugate_mode in [True, False]:
-            main(proj_dir, z_width, ramp_percent, kl, detail_mode, conjugate_weighting=conjugate_mode)
-
+        main(proj_dir, z_width, ramp_percent, kl, detail_mode, conjugate_weighting=conjugate_mode)
 
