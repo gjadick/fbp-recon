@@ -14,8 +14,8 @@ from datetime import datetime
 
 from file_manager import read_dcm_proj, make_output_dir, img_to_dcm
 from preprocess import get_G, get_w3D, do_conjugate_ray_weighting
-from fbp import get_recon_coords, get_sinogram, do_recon, do_recon_weights    
-from fbp_gpu import do_recon_gpu, do_recon_weights_gpu
+from fbp import get_recon_coords, get_sinogram, do_recon    
+from fbp_gpu import do_recon_gpu
 from postprocess import get_HU
 
 import matplotlib.pyplot as plt
@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 ##########################################################################
 
-def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, conjugate_weighting=False):
+def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False):
  
     ### ACQUISITION PARAMS
     
@@ -108,12 +108,7 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
     alpha_coord = np.array([(j - rows//2 + 0.5) * sz_row for j in range(rows)], dtype=np.float32)/SDD
     w3D = get_w3D(alpha_coord, np.max(alpha_coord), kl, detail_mode=detail_mode)
     
-    if conjugate_weighting:
-        data_beta_flat = np.reshape(do_conjugate_ray_weighting(data_beta, w3D, rows, cols, N_rot, gamma_coord, vz_coord, dbeta_proj, dz_proj), [N_proj*rows, cols])
-
-    else:
-        data_beta_flat = np.reshape([rotproj*np.tile(w3D,[cols,N_rot]).T for rotproj in data_beta], [N_proj*rows, cols])
-    
+    data_beta_flat = np.reshape([rotproj*np.tile(w3D,[cols,N_rot]).T for rotproj in data_beta], [N_proj*rows, cols])
     del data_beta
     
 
@@ -145,25 +140,12 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False, 
         sino = get_sinogram(q_filtered, dz_proj, vz_coord, z_target, z_width)        
 
         # recon
-        if conjugate_weighting:
-            if use_GPU:
-                recon = do_recon_gpu(sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj)
-            else:
-                recon = do_recon(sino, dbeta_proj, gamma_coord,      
-                     gamma_target_M, L2_M, ji_coord, verbose=verbose)
-            recon_HU = get_HU(recon, 0.0525587, -0.0047017)  
-
+        if use_GPU:
+            recon = do_recon_gpu(sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj)
         else:
-            w3D_rays = np.tile(np.reshape(w3D, [1,rows,1]), [N_proj_rot, N_rot, cols])
-            w_sino = get_sinogram(w3D_rays, dz_proj, vz_coord, z_target, z_width)       # weights
-            if use_GPU:
-                recon = do_recon_weights_gpu(sino, w_sino, 
-                    gamma_target_M, L2_M, gamma_coord, dbeta_proj)
-            else:
-                recon = do_recon_weights(sino, w_sino, dbeta_proj, gamma_coord,      
-                     gamma_target_M, L2_M, ji_coord,
-                     verbose=verbose)
-            recon_HU = get_HU(recon, 9.528875, -1.0764065)
+            recon = do_recon(sino, dbeta_proj, gamma_coord,      
+                     gamma_target_M, L2_M, ji_coord, verbose=verbose)
+        recon_HU = get_HU(recon, 0.0525587, -0.0047017)  
 
         # save image
         filename = os.path.join(output_dir, f'{i_target+1:04}.dcm')
@@ -187,7 +169,6 @@ if __name__=='__main__':
         ramp_percent = 0.50
         kl = 0.50
         detail_mode = False
-        conjugate_mode =  True
 
     elif organ=='lung':
         main_dir = 'input/dcmproj_lung_lesion'
@@ -195,7 +176,6 @@ if __name__=='__main__':
         ramp_percent = 0.60
         kl = 1.0 
         detail_mode = True
-        conjugate_mode =  True
 
     elif organ=='copd':
         main_dir = 'input/dcmproj_copd'
@@ -203,7 +183,6 @@ if __name__=='__main__':
         ramp_percent = 0.90
         kl = 1.0 
         detail_mode = True
-        conjugate_mode =  True
     
     else: 
         print(f'organ {organ} not valid argument')
@@ -221,5 +200,5 @@ if __name__=='__main__':
         proj_dir = os.path.join(main_dir, case_id)
         now = datetime.now()
         print(f'\n[{now.strftime("%Y_%m_%d_%H_%M_%S")}] {proj_dir}')
-        main(proj_dir, z_width, ramp_percent, kl, detail_mode, conjugate_weighting=conjugate_mode)
+        main(proj_dir, z_width, ramp_percent, kl, detail_mode)
 
