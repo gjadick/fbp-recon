@@ -88,7 +88,11 @@ def get_recon_coords(N_matrix, FOV, N_proj_rot, dbeta_proj, SID):
 
     # recon matrix indices
     ji_coord = np.reshape(np.array(np.meshgrid(range(N_matrix),range(N_matrix))).T, [N_matrix**2, 2])
-    
+
+    # get rid of coordinates outside of max FOV
+    ji_mask = [ np.sqrt((j+0.5-N_matrix/2)**2 + (i+0.5-N_matrix/2)**2) < N_matrix/2 for j,i in ji_coord]
+    ji_coord = ji_coord[ji_mask]
+
     return ji_coord, r_matrix, theta_matrix, gamma_target_matrix_all, L2_matrix_all
     
 def lerp(v0, v1, t):
