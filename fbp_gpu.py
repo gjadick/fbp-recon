@@ -1,7 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+@author: gjadick
+"""
+
 import pycuda.autoinit
 from pycuda import compiler, driver, gpuarray
 import numpy as np
-
 
 
 def do_recon_gpu(sino, gamma_target_M, L2_M, gamma_coord, dbeta_proj):
