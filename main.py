@@ -4,6 +4,25 @@
 Created on Fri May 27 11:06:36 2022
 
 @author: gjadick
+
+A script to reconstruct 3D CT data using filtered backprojection (FBP),
+with an adjustable ramp filter and conjugate ray weighting cone beam correction.
+
+Acquisition params are set within main().
+Reconstruction params are passed as arguments to main().
+
+One key option is "use_GPU", which determines the function called to do the reconstruction.
+If Nvidia GPUs are available, this option should be set to "True".
+GPU acceleration will reduce the reconstruction time by several orders of magnitude.
+(a single 512x512 slice will take a few seconds instead of a half hour).
+
+TODO:
+    - fix HU scaling (calibration good for small to average patients, but air ~ -1400 HU for large patient)
+    - improve cone beam correction (some ring artifacts, only a few cases, cause?)
+    - cone beam binning files (should not need to recalculate for same geometry every recon)
+    - GPU acceleration for projection pre-processing (especially FT filtering)
+    - iterative options?
+
 """
 
 import sys
@@ -23,7 +42,7 @@ import matplotlib.pyplot as plt
 
 ##########################################################################
 
-def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False):
+def main(proj_dir, z_width, FOV, N_matrix, ramp_percent, kl, detail_mode=True, use_GPU=False, verbose=False):
  
     ### ACQUISITION PARAMS
     
@@ -39,13 +58,6 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False):
     SID = 575.0          # mm, source-isocenter distance 
     SDD = 1050.0         # mm, source-detector distance 
     pitch = 1.0          # ratio dz_per_rot / BC
-    
-    ### RECON PARAMS
-    
-    use_GPU = True
-
-    FOV = 500.0          # mm
-    N_matrix = 512       # [N,N] pixels in recon matrix
     
     s = sz_col*SID/SDD    # sampling distance
     fN = 1/(2*s)          # Nyquist frequency
@@ -161,44 +173,20 @@ def main(proj_dir, z_width, ramp_percent, kl, detail_mode=False, verbose=False):
 
 if __name__=='__main__':
 
-    organ = sys.argv[3] # must be liver, lung, copd
-
-    if organ=='liver':
-        main_dir = 'input/dcmproj_liver'
-        z_width = 1.5
-        ramp_percent = 0.50
-        kl = 0.50
-        detail_mode = False
-
-    elif organ=='lung':
-        main_dir = 'input/dcmproj_lung_lesion'
-        z_width = 0.5467
-        ramp_percent = 0.60
-        kl = 1.0 
-        detail_mode = True
-
-    elif organ=='copd':
-        main_dir = 'input/dcmproj_copd'
-        z_width = 0.5467
-        ramp_percent = 0.90
-        kl = 1.0 
-        detail_mode = True
-    
-    else: 
-        print(f'organ {organ} not valid argument')
-
-
+    main_dir = 'input/dcmproj_copd'
     case_files = sorted([x for x in os.listdir(main_dir) if 'dcm_' in x]) 
-    N_tot = len(case_files)
-
-    # for multiple GPUs, divide cases into equal fractions
-    this_frac = int(sys.argv[1])
-    run_fracs = int(sys.argv[2])
-    case_files = case_files[int(N_tot*(this_frac-1)/run_fracs):int(N_tot*this_frac/run_fracs)] 
+    
+    z_width = 0.5467      # mm
+    FOV = 500             # mm
+    N_matrix = 512 
+    ramp_percent = 0.90   # % of Nyquist frequency
+    kl = 1.0              # conjugate ray weighting strength (0 to 1)
+    detail_mode = True    
     
     for case_id in case_files:
         proj_dir = os.path.join(main_dir, case_id)
         now = datetime.now()
         print(f'\n[{now.strftime("%Y_%m_%d_%H_%M_%S")}] {proj_dir}')
-        main(proj_dir, z_width, ramp_percent, kl, detail_mode)
+        main(proj_dir, z_width, FOV, N_matrix, ramp_percent, kl, detail_mode=detail_mode, use_GPU=False)
+
 
