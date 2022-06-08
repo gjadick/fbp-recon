@@ -25,7 +25,6 @@ TODO:
 
 """
 
-import sys
 import os 
 import numpy as np
 from time import time
@@ -36,8 +35,6 @@ from preprocess import get_G, get_w3D, do_conjugate_ray_weighting
 from fbp import get_recon_coords, get_sinogram, do_recon    
 from fbp_gpu import do_recon_gpu
 from postprocess import get_HU
-
-import matplotlib.pyplot as plt
 
 
 ##########################################################################
