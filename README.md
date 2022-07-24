@@ -2,6 +2,8 @@
 A Python framework for filtered backprojection reconstruction (FBP) of 3D CT data,
 with an adjustable ramp filter and conjugate ray weighting cone beam correction.
 
+![Example Recon](example/matrix.gif)
+
 # Usage
 Acquisition params are set within main().
 Reconstruction params are passed as arguments to main().
